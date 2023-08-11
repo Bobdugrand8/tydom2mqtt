@@ -5,6 +5,7 @@ import logging
 import os
 import ssl
 import sys
+import asyncio
 
 import websockets
 import requests
@@ -63,7 +64,7 @@ class TydomClient:
             self.ssl_context = ssl._create_unverified_context()
             self.ssl_context.options |= 0x4
             self.cmd_prefix = ""
-            self.ping_timeout = None
+            self.ping_timeout = 40
 
     @staticmethod
     def getTydomCredentials(login: str, password: str, macaddress: str):
@@ -131,12 +132,17 @@ class TydomClient:
             self.host, 443, context=self.ssl_context)
 
         # Get first handshake
-        conn.request(
-            "GET",
-            "/mediation/client?mac={}&appli=1".format(self.mac),
-            None,
-            http_headers,
-        )
+        try:
+            conn.request(
+                "GET",
+                "/mediation/client?mac={}&appli=1".format(self.mac),
+                None,
+                http_headers,
+            )
+        except Exception as e:
+            logger.debug("Exception raised: %s ",e)
+            pass
+
         res = conn.getresponse()
         conn.close()
 
@@ -161,7 +167,8 @@ class TydomClient:
             # Build websocket headers
             websocket_headers = {
                 "Authorization": self.build_digest_headers(nonce)}
-        except AttributeError:
+        except AttributeError as e:
+            logger.debug("Exception raised: %s ",e)
             pass
 
         logger.debug("Upgrading http connection to websocket....")
@@ -184,7 +191,7 @@ class TydomClient:
                 f"wss://{self.host}:443/mediation/client?mac={self.mac}&appli=1",
                 extra_headers=websocket_headers,
                 ssl=websocket_ssl_context,
-                ping_timeout=None,
+                ping_timeout=self.ping_timeout,
             )
             logger.info('Connected to tydom')
             return self.connection
@@ -366,14 +373,9 @@ class TydomClient:
         msg_type = "/refresh/all"
         req = "POST"
         await self.send_message(method=req, msg=msg_type)
-        # Get poll device data
-        nb_poll_devices = len(self.poll_device_urls)
-        if self.current_poll_index < nb_poll_devices - 1:
-            self.current_poll_index = self.current_poll_index + 1
-        else:
-            self.current_poll_index = 0
-        if nb_poll_devices > 0:
-            await self.get_poll_device_data(self.poll_device_urls[self.current_poll_index])
+        for url in self.poll_device_urls:
+            await asyncio.wait_for(self.get_poll_device_data(url),self.reply_timeout)
+        await asyncio.sleep(5)  
 
     # Get the moments (programs)
     async def get_moments(self):
@@ -457,7 +459,7 @@ class TydomClient:
     async def setup(self):
         logger.info("Setup tydom client")
         await self.get_info()
-        await self.post_refresh()
+       # await self.post_refresh()
         await self.get_data()
 
     async def get_thermostat_custom_presets(self):

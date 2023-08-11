@@ -5,6 +5,8 @@ import socket
 import sys
 import signal
 import websockets
+import time
+import threading
 
 from configuration.Configuration import Configuration
 from mqtt.MqttClient import MqttClient
@@ -37,6 +39,8 @@ if configuration.log_level != 'DEBUG':
     logging.getLogger('gmqtt').setLevel(logging.WARNING)
     logging.getLogger('websockets').setLevel(logging.WARNING)
 
+if configuration.log_level == 'DEBUG':
+    logging.getLogger('gmqtt').setLevel(logging.WARNING)
 
 # Listen to tydom events.
 async def listen_tydom():
@@ -54,20 +58,22 @@ async def listen_tydom():
                         mqtt_client=mqtt_client,
                     )
                     await message_handler.incoming_triage()
+                    await tydom_client.post_refresh()
                 except websockets.ConnectionClosed as e:
                     logger.error("Websocket connection closed: %s", e)
                     await tydom_client.disconnect()
+                    await asyncio.sleep(tydom_client.sleep_time)
                     break
                 except Exception as e:
                     logger.warning("Unable to handle message: %s", e)
                     await tydom_client.disconnect()
-
+                    await asyncio.sleep(tydom_client.sleep_time)
         except socket.gaierror as e:
             logger.error("Socket error (%s)", e)
-            sys.exit(1)
+            await asyncio.sleep(tydom_client.sleep_time)
         except ConnectionRefusedError as e:
             logger.error("Connection refused (%s)", e)
-            sys.exit(1)
+            await asyncio.sleep(tydom_client.sleep_time)
 
 
 # Create tydom client
@@ -121,6 +127,7 @@ def main():
     loop.create_task(mqtt_client.connect())
     loop.create_task(listen_tydom())
     loop.run_forever()
+
 
 
 if __name__ == "__main__":

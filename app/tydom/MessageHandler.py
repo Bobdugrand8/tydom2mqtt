@@ -1,5 +1,6 @@
 import json
 import logging
+import asyncio
 from http.client import HTTPResponse
 from http.server import BaseHTTPRequestHandler
 from io import BytesIO
@@ -433,10 +434,8 @@ class MessageHandler:
                                     for dest in params["enum_values"]:
                                         url = "/devices/" + str(i["id"]) + "/endpoints/" + str(
                                             endpoint["id"]) + "/cdata?name=" + elem["name"] + "&dest=" + dest + "&reset=false"
-                                        self.tydom_client.add_poll_device_url(
-                                            url)
-                                        logger.debug(
-                                            "Add poll device : " + url)
+                                        self.tydom_client.add_poll_device_url(url)
+                                        logger.debug("Add poll device : " + url)
                         elif elem["name"] == "energyInstant":
                             device_name[unique_id] = 'Tywatt'
                             device_type[unique_id] = 'conso'
@@ -445,10 +444,8 @@ class MessageHandler:
                                     for unit in params["enum_values"]:
                                         url = "/devices/" + str(i["id"]) + "/endpoints/" + str(
                                             endpoint["id"]) + "/cdata?name=" + elem["name"] + "&unit=" + unit + "&reset=false"
-                                        self.tydom_client.add_poll_device_url(
-                                            url)
-                                        logger.debug(
-                                            "Add poll device : " + url)
+                                        self.tydom_client.add_poll_device_url(url)
+                                        logger.debug("Add poll device : " + url)
                         elif elem["name"] == "energyDistrib":
                             device_name[unique_id] = 'Tywatt'
                             device_type[unique_id] = 'conso'
@@ -457,10 +454,8 @@ class MessageHandler:
                                     for src in params["enum_values"]:
                                         url = "/devices/" + str(i["id"]) + "/endpoints/" + str(
                                             endpoint["id"]) + "/cdata?name=" + elem["name"] + "&period=YEAR&periodOffset=0&src=" + src
-                                        self.tydom_client.add_poll_device_url(
-                                            url)
-                                        logger.debug(
-                                            "Add poll device : " + url)
+                                        #self.tydom_client.add_poll_device_url(url)
+                                        logger.debug("Ignore poll device : " + url + " ")
 
         logger.debug('Metadata configuration updated')
 
@@ -825,7 +820,7 @@ class MessageHandler:
                                 elif elem["name"] == "energyInstant":
                                     device_class_of_id = 'current'
                                     state_class_of_id = 'measurement'
-                                    unit_of_measurement_of_id = 'VA'
+                                    unit_of_measurement_of_id = 'A'
                                     element_name = elem["parameters"]["unit"]
                                     element_index = 'measure'
 
@@ -862,11 +857,11 @@ class MessageHandler:
                                                 'unit_of_measurement': 'Wh',
                                                 element_name: elem["values"][element_index]}
 
-                                            new_conso = Sensor(
-                                                elem_name=element_name,
-                                                tydom_attributes_payload=attr_conso,
-                                                mqtt=self.mqtt_client)
-                                            await new_conso.update()
+                                            #new_conso = Sensor(
+                                            #    elem_name=element_name,
+                                            #    tydom_attributes_payload=attr_conso,
+                                            #    mqtt=self.mqtt_client)
+                                            #await new_conso.update()
 
                     except Exception as e:
                         logger.error('Error when parsing msg_cdata (%s)', e)
